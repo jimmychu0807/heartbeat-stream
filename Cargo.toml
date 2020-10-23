@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 tokio = { version = "0.3", features = ["full"] }
 futures-timer = { version = "3.0.2" }
+rand = { version = "0.7.3" }

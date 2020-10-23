@@ -9,33 +9,52 @@ use core::{
 	time::Duration,
 };
 use std::io::{self, Write};
+use rand::Rng;
 
-struct RandomStream {
+struct IncomingStream {
 	min_dur: Duration,
 	max_dur: Duration,
+	burst: bool,
+	burst_max: Option<u32>,
 	delay: Option<Delay>,
 	char: char
 }
 
-impl RandomStream {
-	pub fn new(min: u64, max: u64, char: char) -> Self {
-		let mut rs = RandomStream {
+impl IncomingStream {
+	pub fn new(min: u64, max: u64, burst: bool, burst_max: Option<u32>, char: char) -> Self {
+		let mut rs = IncomingStream {
+			char,
+			burst,
+			burst_max,
 			min_dur: Duration::from_secs(min),
 			max_dur: Duration::from_secs(max),
 			delay: None,
-			char
 		};
-
 		rs.set_next_delay();
 		rs
 	}
 
+	pub fn new_regular(min: u64, max: u64, char: char) -> Self {
+		Self::new(min, max, false, None, char)
+	}
+
+	pub fn fixed(sec: u64, char: char) -> Self {
+		Self::new(sec, sec, false, None, char)
+	}
+
+	pub fn new_burst(min: u64, max: u64, burst_max: u32, char: char) -> Self {
+		Self::new(min, max, true, Some(burst_max), char)
+	}
+
 	fn set_next_delay(&mut self) {
-		self.delay = Some(Delay::new(self.min_dur));
+		let mut rng = rand::thread_rng();
+		let [min, max] = [self.min_dur.as_secs(), self.max_dur.as_secs()];
+		let next_dur = rng.gen_range(min, max + 1);
+		self.delay = Some(Delay::new(Duration::from_secs(next_dur)));
 	}
 }
 
-impl Stream for RandomStream {
+impl Stream for IncomingStream {
 	// TODO: can you enhance on this to pass by from beginning
 	type Item = char;
 	fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -55,20 +74,16 @@ impl Stream for RandomStream {
 	}
 }
 
-struct BurstingStream {
-
-}
-
-
 #[tokio::main]
 pub async fn main() -> Result<(), ()> {
   println!("Running main async");
-  let mut rs = RandomStream::new(3, 8, 'H');
+  let mut rs = IncomingStream::new_regular(3, 8, 'H');
 
   // how you poll a stream
   while let Some(c) = rs.next().await {
   	print!("{}", c);
-  	io::stdout().flush();
+  	// you need flushing, because rust print! is buffered
+  	io::stdout().flush().expect("should return successfully");
   }
 
   Ok(())
