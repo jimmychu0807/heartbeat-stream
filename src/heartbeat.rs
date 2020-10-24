@@ -52,8 +52,6 @@ impl Stream for HeartbeatStream {
 	fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
 		let mut stream1 = self.streams[0];
 		let mut stream2 = self.streams[1];
-
-		let current = Instant::now();
 		let since_last_signal = Instant::now().saturating_duration_since(
 			self.last_signal.unwrap_or(heartbeat_imported));
 
